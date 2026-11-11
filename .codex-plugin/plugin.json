@@ -1,0 +1,17 @@
+{
+  "name": "walk-me-through",
+  "version": "0.2.1",
+  "description": "Follow a real workflow through source code, example data, branches, and state changes.",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Walk Me Through",
+    "shortDescription": "Step through workflows with code attached",
+    "category": "Developer Tools",
+    "capabilities": [
+      "Instructions"
+    ],
+    "defaultPrompt": [
+      "Walk me through this workflow with code and state at each step."
+    ]
+  }
+}

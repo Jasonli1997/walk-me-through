@@ -1,0 +1,502 @@
+{
+  "title": "How Walk Me Through works",
+  "summary": "A coding agent authors the journey. Python validates and snapshots the code. Your browser turns that document into a step-through explanation. Follow the full path or inspect a rejected build.",
+  "steps": [
+    {
+      "id": "request",
+      "title": "1. Turn the question into one concrete journey",
+      "explanation": "The coding agent chooses one user action, follows its actual callers and callees in current source, and identifies boundaries such as HTTP requests and background threads. This is agent reasoning guided by the skill, not executable analysis code. No knowledge graph or external analysis plugin is involved.",
+      "boundary": "User request \u2192 agent reasoning",
+      "source": {
+        "path": "skills/walk-me-through/SKILL.md",
+        "start": 8,
+        "end": 12
+      },
+      "inputs": {
+        "request": "Show how a review sync reaches persisted alignment state"
+      },
+      "outputs": {
+        "scope": "One review-sync journey, including a relevant failure path"
+      },
+      "state": {
+        "application": "Not executed or changed"
+      }
+    },
+    {
+      "id": "author",
+      "title": "2. The agent writes the explanation as JSON",
+      "explanation": "The agent authors step descriptions, source ranges, illustrative inputs/outputs/state, and explicit scenario paths. The builder does not infer the workflow or invent explanations: it consumes this document. The code excerpt is the skill\u2019s schema example, not a real source path in this plugin.",
+      "boundary": "Agent reasoning \u2192 workflow document",
+      "source": {
+        "path": "skills/walk-me-through/SKILL.md",
+        "start": 14,
+        "end": 35
+      },
+      "inputs": {
+        "evidence": "Current source and verified calls"
+      },
+      "outputs": {
+        "flow.json": {
+          "steps": [
+            "load",
+            "validate",
+            "write"
+          ],
+          "scenarios": [
+            {
+              "id": "success",
+              "steps": [
+                "load",
+                "validate",
+                "write"
+              ]
+            }
+          ]
+        }
+      },
+      "state": {
+        "explanation": "Written by the agent; example values are illustrative"
+      }
+    },
+    {
+      "id": "invoke",
+      "title": "3. Run the deterministic builder",
+      "explanation": "The command-line entry point accepts the project root, authored flow JSON, and HTML output path, then calls build(). No model or remote API is invoked by this Python program.",
+      "boundary": "Workflow document \u2192 Python CLI",
+      "source": {
+        "path": "skills/walk-me-through/scripts/build.py",
+        "start": 65,
+        "end": 71
+      },
+      "inputs": {
+        "command": "python3 scripts/build.py --root PROJECT --flow FLOW.json --output walkthrough.html"
+      },
+      "outputs": {
+        "call": "build(root, flow_path, output)"
+      },
+      "state": {
+        "build process": "Starts locally"
+      }
+    },
+    {
+      "id": "load",
+      "title": "4. Load JSON and validate step structure",
+      "explanation": "build() resolves the root and parses the workflow JSON. It requires a title, summary, steps, scenarios, unique step IDs, explanations, boundary descriptions, and object-shaped example data. These checks prevent broken data from reaching the viewer; they do not prove the narrative is semantically correct.",
+      "boundary": "JSON file \u2192 validated step records",
+      "source": {
+        "path": "skills/walk-me-through/scripts/build.py",
+        "start": 10,
+        "end": 28
+      },
+      "inputs": {
+        "flow.json": {
+          "title": "Review sync",
+          "steps": [
+            {
+              "id": "submit"
+            }
+          ]
+        }
+      },
+      "outputs": {
+        "ids": [
+          "submit"
+        ]
+      },
+      "state": {
+        "flow": "Parsed into a Python dictionary"
+      }
+    },
+    {
+      "id": "source",
+      "title": "5. Resolve the source path inside the project",
+      "explanation": "For every step, the builder resolves the referenced path and rejects absolute paths or paths outside the project root. Resolving symlinks before checking containment also prevents a link inside the project from pointing to an outside file. It then reads the referenced text.",
+      "boundary": "Step reference \u2192 local source file",
+      "source": {
+        "path": "skills/walk-me-through/scripts/build.py",
+        "start": 29,
+        "end": 36
+      },
+      "inputs": {
+        "root": "/project",
+        "source.path": "server/reviews.py"
+      },
+      "outputs": {
+        "resolved_path": "/project/server/reviews.py"
+      },
+      "state": {
+        "filesystem": "Read-only source access"
+      }
+    },
+    {
+      "id": "snapshot",
+      "title": "6. Embed the exact source range",
+      "explanation": "The builder validates line ranges, embeds those exact source lines, and hashes the full raw source bytes. The displayed code remains a snapshot. Optional folder access lets the viewer later compare hashes against live files without replacing the embedded code or rewriting the explanation.",
+      "boundary": "Source file \u2192 embedded code snapshot",
+      "source": {
+        "path": "skills/walk-me-through/scripts/build.py",
+        "start": 37,
+        "end": 41
+      },
+      "inputs": {
+        "source": {
+          "start": 10,
+          "end": 14
+        },
+        "file_lines": 80
+      },
+      "outputs": {
+        "source.code": "Exact lines 10\u201314",
+        "source.sha256": "SHA256 of the full raw source bytes"
+      },
+      "state": {
+        "step.source": "Enriched with code and fingerprint"
+      }
+    },
+    {
+      "id": "paths",
+      "title": "7. Validate scenario paths",
+      "explanation": "Each scenario is an explicit ordered list of step IDs. The builder rejects duplicate scenario IDs, missing titles/descriptions/paths, and references to unknown steps. It does not infer branches or prove that a listed sequence executes at runtime.",
+      "boundary": "Step inventory \u2192 selectable paths",
+      "source": {
+        "path": "skills/walk-me-through/scripts/build.py",
+        "start": 42,
+        "end": 50
+      },
+      "inputs": {
+        "steps": [
+          "submit",
+          "save"
+        ],
+        "scenario.steps": [
+          "submit",
+          "save"
+        ]
+      },
+      "outputs": {
+        "scenario": "Valid path through existing steps"
+      },
+      "state": {
+        "source files": "Still unchanged"
+      }
+    },
+    {
+      "id": "html",
+      "title": "8. Package data and source into one HTML file",
+      "explanation": "The builder records Git HEAD and build time, loads the viewer template, embeds the freshness-check script, and inserts the enriched workflow JSON. Escaping < prevents source text from closing the JSON script element. It writes one standalone HTML file.",
+      "boundary": "Python records \u2192 portable HTML",
+      "source": {
+        "path": "skills/walk-me-through/scripts/build.py",
+        "start": 51,
+        "end": 62
+      },
+      "inputs": {
+        "template": "assets/viewer.html",
+        "flow": "Validated paths plus source snapshots"
+      },
+      "outputs": {
+        "file": "walkthrough.html"
+      },
+      "state": {
+        "output directory": "Created if needed; HTML written"
+      }
+    },
+    {
+      "id": "boot",
+      "title": "9. Browser loads the embedded workflow",
+      "explanation": "This starts a new phase: the user opens the generated HTML in a browser. JavaScript parses the embedded JSON, indexes steps by ID, selects the first scenario and starts at index zero. It populates the scenario selector. There is no server request or application execution.",
+      "boundary": "Saved HTML \u2192 browser state",
+      "source": {
+        "path": "skills/walk-me-through/assets/viewer.html",
+        "start": 19,
+        "end": 26
+      },
+      "inputs": {
+        "embedded_data": "Flow, code snapshots, metadata"
+      },
+      "outputs": {
+        "byId": "Map from step IDs to step objects"
+      },
+      "state": {
+        "scenario": "First scenario",
+        "index": 0,
+        "timer": null
+      }
+    },
+    {
+      "id": "render",
+      "title": "10. Render the selected step and its code",
+      "explanation": "render() chooses the step at the current scenario index, draws the flow buttons, and fills the explanation, exact numbered source lines, and example data panels. Text is inserted with textContent or text nodes rather than interpreted as HTML. It also updates progress, button bounds, and source provenance.",
+      "boundary": "Browser state \u2192 flowchart and detail panels",
+      "source": {
+        "path": "skills/walk-me-through/assets/viewer.html",
+        "start": 27,
+        "end": 36
+      },
+      "inputs": {
+        "scenario.steps": [
+          "submit",
+          "save"
+        ],
+        "index": 0
+      },
+      "outputs": {
+        "screen": "Submit step highlighted, its code and example state visible"
+      },
+      "state": {
+        "application state": "Unaffected; displayed state is explanatory example data"
+      }
+    },
+    {
+      "id": "navigate",
+      "title": "11. Change scenario, navigate, or inspect state",
+      "explanation": "Changing scenarios pauses playback and resets the index. Back/Next change the index and call render(). Tabs toggle visibility of code and example-state panels. Clicking a flow step likewise changes the selected index (shown in render()). The data is already embedded in the page.",
+      "boundary": "User controls \u2192 local viewer state",
+      "source": {
+        "path": "skills/walk-me-through/assets/viewer.html",
+        "start": 37,
+        "end": 41
+      },
+      "inputs": {
+        "action": "Choose a scenario, click Next, or open Example data & state"
+      },
+      "outputs": {
+        "screen": "Updated selected step or detail tab"
+      },
+      "state": {
+        "index": "Changes within selected scenario",
+        "timer": "Paused during manual navigation"
+      }
+    },
+    {
+      "id": "play",
+      "title": "12. Playback advances explanations, not application code",
+      "explanation": "Play starts an interval that increments the index every 3.5 seconds and rerenders. At the last step it pauses; Play from the end restarts. Page hiding also pauses playback. Nothing calls your API, runs the displayed Python, or evaluates the example state.",
+      "boundary": "Timer \u2192 next explanation step",
+      "source": {
+        "path": "skills/walk-me-through/assets/viewer.html",
+        "start": 39,
+        "end": 42
+      },
+      "inputs": {
+        "action": "Play",
+        "interval_ms": 3500
+      },
+      "outputs": {
+        "screen": "Next step highlighted with its code and examples"
+      },
+      "state": {
+        "index": "0 \u2192 1 \u2192 2 \u2026",
+        "timer": "Active until paused, hidden, or finished"
+      }
+    },
+    {
+      "id": "reject-path",
+      "title": "Build stops: the source escapes the project",
+      "explanation": "The source-containment guard raises ValueError. The caller has no catch that turns this into a partial viewer, so the build exits before output.write_text(). If a prior HTML exists, it remains the old artifact; a failed build does not refresh it.",
+      "boundary": "Source-path validation \u2192 build failure",
+      "source": {
+        "path": "skills/walk-me-through/scripts/build.py",
+        "start": 29,
+        "end": 32
+      },
+      "inputs": {
+        "root": "/project",
+        "source.path": "../private.txt"
+      },
+      "outputs": {
+        "exception": "ValueError: Source must be inside the project"
+      },
+      "state": {
+        "HTML output": "Not written or refreshed"
+      }
+    },
+    {
+      "id": "reject-range",
+      "title": "Build stops: a source range is no longer valid",
+      "explanation": "If the requested range no longer fits the file, validation raises ValueError before saving. This catches out-of-bounds references; a range that still fits but now points to different logic requires the agent to review and update the narrative.",
+      "boundary": "Line validation \u2192 build failure",
+      "source": {
+        "path": "skills/walk-me-through/scripts/build.py",
+        "start": 37,
+        "end": 41
+      },
+      "inputs": {
+        "source": {
+          "start": 90,
+          "end": 110
+        },
+        "actual_file_lines": 80
+      },
+      "outputs": {
+        "exception": "ValueError: Invalid source range"
+      },
+      "state": {
+        "HTML output": "Not written or refreshed"
+      }
+    },
+    {
+      "id": "reject-ref",
+      "title": "Build stops: a scenario names a missing step",
+      "explanation": "The document can have valid code snippets but still be unusable if a path points to a nonexistent step. This guard rejects that path before an HTML file is saved. The agent should correct the JSON and rebuild.",
+      "boundary": "Scenario validation \u2192 build failure",
+      "source": {
+        "path": "skills/walk-me-through/scripts/build.py",
+        "start": 42,
+        "end": 50
+      },
+      "inputs": {
+        "known_step_ids": [
+          "submit",
+          "save"
+        ],
+        "scenario.steps": [
+          "submit",
+          "missing"
+        ]
+      },
+      "outputs": {
+        "exception": "ValueError: Scenario references an unknown step"
+      },
+      "state": {
+        "HTML output": "Not written or refreshed"
+      }
+    },
+    {
+      "id": "grant",
+      "title": "Select the project source folder",
+      "explanation": "Check source folder uses the live browser folder API when available. If the API is unavailable or blocked, a standard folder input performs a one-time comparison. No selected files are uploaded. Live handles last for this page session; one-time selections must be repeated after editing.",
+      "boundary": "User permission \u2192 read-only folder handle",
+      "source": {
+        "path": "skills/walk-me-through/assets/freshness.js",
+        "start": 53,
+        "end": 83
+      },
+      "inputs": {
+        "action": "Check source folder",
+        "selected_folder": "walk-me-through"
+      },
+      "outputs": {
+        "access": "Read-only directory handle"
+      },
+      "state": {
+        "sourceFolder": "null \u2192 selected directory"
+      }
+    },
+    {
+      "id": "hash-check",
+      "title": "Compare current bytes with snapshot hashes",
+      "explanation": "The checker reads each referenced file from either the live folder handle or a one-time folder selection, and hashes its raw bytes with the browser crypto API. Changed, missing, and unreadable files are tracked separately. Both access modes use the same comparison.",
+      "boundary": "Referenced files \u2192 hash comparison",
+      "source": {
+        "path": "skills/walk-me-through/assets/freshness.js",
+        "start": 14,
+        "end": 36
+      },
+      "inputs": {
+        "expected": "Hash embedded at build time",
+        "current": "Selected folder file bytes"
+      },
+      "outputs": {
+        "changed": [],
+        "missing": [],
+        "unreadable": []
+      },
+      "state": {
+        "filesystem": "Read-only; source snippets stay embedded snapshots"
+      }
+    },
+    {
+      "id": "freshness",
+      "title": "Show match, stale, or unverified status",
+      "explanation": "Changed or missing files mark the HTML Out of date; access failures remain unverified. Matching files verify only referenced sources. Live access supports manual, focus, and 30-second rechecks. With the standard picker, select the folder again after edits to perform a new comparison; the page does not reuse old file snapshots as if they were live.",
+      "boundary": "Comparison results \u2192 visible freshness banner",
+      "source": {
+        "path": "skills/walk-me-through/assets/freshness.js",
+        "start": 38,
+        "end": 51
+      },
+      "inputs": {
+        "changed": [
+          "skills/walk-me-through/SKILL.md"
+        ]
+      },
+      "outputs": {
+        "banner": "Out of date \u2014 referenced sources differ"
+      },
+      "state": {
+        "freshness": "match \u2192 stale; can return to match after restoration"
+      }
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "full",
+      "title": "Request \u2192 generated HTML \u2192 playback",
+      "description": "The full reconstructed workflow. The first two steps are agent instructions, the middle steps run in Python, and the final steps run in your browser after you open the output.",
+      "steps": [
+        "request",
+        "author",
+        "invoke",
+        "load",
+        "source",
+        "snapshot",
+        "paths",
+        "html",
+        "boot",
+        "render",
+        "grant",
+        "hash-check",
+        "freshness",
+        "navigate",
+        "play"
+      ]
+    },
+    {
+      "id": "outside",
+      "title": "Rejected build \u00b7 source outside project",
+      "description": "An authored step references ../private.txt. Follow the guard that stops the build before an HTML file is written.",
+      "steps": [
+        "author",
+        "invoke",
+        "load",
+        "reject-path"
+      ]
+    },
+    {
+      "id": "range",
+      "title": "Rejected build \u00b7 source range drifted",
+      "description": "The file now has only 80 lines, but the authored reference requests lines 90\u2013110. The builder rejects this range.",
+      "steps": [
+        "author",
+        "invoke",
+        "load",
+        "source",
+        "reject-range"
+      ]
+    },
+    {
+      "id": "missing",
+      "title": "Rejected build \u00b7 unknown step in scenario",
+      "description": "Source snapshots can be valid while the scenario references a nonexistent step. Path validation catches this before saving.",
+      "steps": [
+        "author",
+        "invoke",
+        "load",
+        "source",
+        "snapshot",
+        "reject-ref"
+      ]
+    },
+    {
+      "id": "freshness-test",
+      "title": "Test freshness \u00b7 change a referenced file",
+      "description": "Select the plugin folder, check the hashes, then append a blank line to SKILL.md and click Recheck now. Undo the blank line to return to matching sources. These are illustrative steps; you control the actual edit.",
+      "steps": [
+        "grant",
+        "hash-check",
+        "freshness"
+      ]
+    }
+  ]
+}
