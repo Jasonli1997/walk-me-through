@@ -22,6 +22,12 @@ The plugin includes Codex and Claude manifests. Point your host's local plugin l
 
 The skill describes the JSON format and how to generate a viewer for any project. This repository is the plugin source, not an installed host configuration.
 
+For an existing walkthrough that has accumulated overlapping explanations, use the prototype consolidation skill:
+
+> Use consolidate-walkthrough to reorganize this walkthrough and our follow-up answers. Keep the important examples and caveats, verify the current source, and write a separate consolidated copy.
+
+Read `skills/consolidate-walkthrough/SKILL.md` directly, or use it through the plugin. It reuses the same JSON format and viewer, and distinguishes implemented changes from proposed or unverified behavior.
+
 ## Freshness
 
 Click **Check source folder** and select the same project root used for `--root`. The viewer compares SHA256 hashes of the full referenced files, including uncommitted edits. Missing or changed files mark the explanation out of date.
