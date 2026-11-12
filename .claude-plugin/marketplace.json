@@ -1,0 +1,11 @@
+{
+  "name": "jasonli-personal",
+  "owner": { "name": "Jason Li" },
+  "plugins": [
+    {
+      "name": "walk-me-through",
+      "source": "./",
+      "description": "Explain one real workflow through an interactive flowchart with source code and example state at each step."
+    }
+  ]
+}
